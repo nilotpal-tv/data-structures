@@ -25,6 +25,8 @@ class PlaylistNode {
   PlaylistNode prev;
 
   PlaylistNode(String name) {
+    this.next = null;
+    this.prev = null;
     this.name = name;
     this.totalSongs = 0;
     this.isLooped = false;
@@ -32,13 +34,10 @@ class PlaylistNode {
     this.songListHead = null;
     this.songListTail = null;
     this.currentPlaying = null;
-    this.next = null;
-    this.prev = null;
   }
 
   private SongNode findSong(String songName) {
     SongNode currentSong = this.songListHead;
-
     while (currentSong != null) {
       if (currentSong.name.toLowerCase().equals(songName.toLowerCase()))
         return currentSong;
@@ -173,6 +172,9 @@ class PlaylistNode {
   }
 
   private int findCurrentSongPosition() {
+    if (this.currentPlaying == null)
+      return 1;
+
     int pos = 1;
     SongNode temp = this.songListHead;
 
@@ -198,85 +200,97 @@ class PlaylistNode {
     }
 
     SongNode temp = this.songListHead;
-
     if (seekNum > 0) {
-      // Maybe currently playing song will eb the last one, Since looped is true we
-      // need to set it to the first song.
+      /*
+       * Maybe currently playing song will eb the last one, Since looped is true we
+       * need to set it to the first song.
+       */
+      int startIdx = 1; // starting index
+
       if (this.currentPlaying != null)
         temp = this.currentPlaying.next != null ? this.currentPlaying.next : this.songListHead;
 
-      if (seekNum > this.totalSongs && this.isLooped) {
-        int startIdx = 1; // starting index
-        int timesToLoop = Math.round(seekNum / this.totalSongs) + 1; // Calculate how many times we have to loop
-
-        for (int i = 1; i <= timesToLoop; i++) {
-          while (temp.next != null && startIdx < seekNum) {
-            temp = temp.next;
-            startIdx++;
-          }
-
-          // Since the seek number it greater we will reach end at least one time so
-          // temp.next will be null. and cz the looped is set to true we need start over
-          if (temp.next == null) {
-            temp = this.songListHead;
-            startIdx++;
-          }
-        }
-      } else {
-        int startIdx = 1;
+      // Case if the the seek number if greater than total songs
+      if ((seekNum > this.totalSongs || seekNum <= this.totalSongs) && this.isLooped) {
+        /*
+         * Since the seek number it greater we will reach end at least one time so
+         * temp.next will be null. and cz the looped is set to true we need start over
+         */
         while (startIdx < seekNum) {
-          // Since the seek number it greater we will reach end at least one time so
-          // temp.next will be null. we need start over if startIdx is not equal to seek
-          // number
           if (temp.next == null)
             temp = this.songListHead;
-
-          temp = temp.next;
+          else
+            temp = temp.next;
           startIdx++;
         }
       }
-    } else {
-      int absSeekNum = Math.abs(seekNum);
-      int startIdx = this.currentPlaying == null ? 1 : this.findCurrentSongPosition();
-      int timesToLoop = Math.round(absSeekNum / this.totalSongs) + 1; // Calculate how many times we have to loop
 
-      // Maybe currently playing song will be the first one, Since looped is true we
-      // need to set it to the last song.
+      // Case if seek number is less than total songs, playlist is not in loop but
+      // there is a currently playing song.
+      if (seekNum <= this.totalSongs && !this.isLooped) {
+        int currentPlayingSongPos = this.findCurrentSongPosition();
+        Boolean shouldLoop = this.totalSongs - currentPlayingSongPos >= seekNum;
+
+        if (shouldLoop) {
+          while (startIdx < seekNum) {
+            temp = temp.next;
+            startIdx++;
+          }
+        } else
+          temp = this.songListTail;
+      }
+    } else {
+      int absoluteSeekNum = Math.abs(seekNum);
+      int startIdx = 0;
+
+      /*
+       * Maybe currently playing song will be the first one, Since looped is true we
+       * need to set it to the last song.
+       */
       if (this.currentPlaying != null)
         temp = this.currentPlaying.prev != null ? this.currentPlaying.prev : this.songListTail;
 
-      if (absSeekNum > this.totalSongs && this.isLooped) {
-        for (int i = 1; i <= timesToLoop; i++) {
-          while (temp.prev != null && startIdx > seekNum) {
+      if ((absoluteSeekNum > this.totalSongs || absoluteSeekNum <= this.totalSongs) && this.isLooped) {
+        /*
+         * Since the seek number it greater we will reach end at least one time so
+         * temp.prev will be null. and cz the looped is set to true we need start over
+         */
+        while (startIdx > seekNum) {
+          if (temp.prev == null)
+            temp = this.songListTail;
+          else
+            temp = temp.prev;
+          startIdx--;
+        }
+      }
+
+      // Case if seek number is less than total songs, playlist is not in loop but
+      // there is a currently playing song
+      if (absoluteSeekNum <= this.totalSongs && this.currentPlaying != null && !this.isLooped) {
+        int currentPlayingSongPos = this.findCurrentSongPosition();
+        Boolean shouldLoop = this.totalSongs - currentPlayingSongPos >= absoluteSeekNum;
+
+        if (shouldLoop) {
+          while (startIdx > seekNum) {
             temp = temp.prev;
             startIdx--;
           }
-
-          // Since the seek number it greater we will reach end at least one time so
-          // temp.next will be null. and cz the looped is set to true we need start over
-          if (temp.prev == null) {
-            temp = this.songListTail;
-            startIdx--;
-          }
-        }
-      } else {
-        while (startIdx > seekNum) {
-          // Since the seek number it greater we will reach end at least one time so
-          // temp.prev will be null. we need start over if startIdx is not equal to seek
-          // number
-          if (temp.prev == null)
-            temp = this.songListTail;
-          temp = temp.prev;
-          startIdx--;
-        }
+        } else
+          temp = this.songListHead;
       }
     }
 
     this.isPlaying = true;
     this.currentPlaying = temp;
     System.out.println("\nNow playing \"" + temp.name + "\" from playlist " + this.name);
-
     return this;
+  }
+
+  void printCurrentlyPlayingSong() {
+    if (this.currentPlaying == null)
+      System.out.println("You're not playing anything.");
+    else
+      System.out.println("\nPlaying \"" + this.currentPlaying.name + "\" from playlist " + this.name);
   }
 
   void printPlaylist() {
@@ -419,15 +433,16 @@ public class PlayList {
       System.out.println("\t2. Delete a playlist.");
       System.out.println("\t3. Select a playlist");
       System.out.println("\t4. Show my playlists.");
-      System.out.println("\t5. Display songs of a playlist.");
-      System.out.println("\t6. Add song to a playlist.");
-      System.out.println("\t7. Delete song from a playlist.");
+      System.out.println("\t5. Display songs of current playlist.");
+      System.out.println("\t6. Add song to playlist.");
+      System.out.println("\t7. Delete song from playlist.");
       System.out.println("\t8. Set looping.");
       System.out.println("\t9. Play.");
       System.out.println("\t10. Pause.");
       System.out.println("\t11. Play next.");
       System.out.println("\t12. Play previous.");
       System.out.println("\t13. Seek songs.");
+      System.out.println("\t14. Current playing song.");
       System.out.println("\t******************************");
 
       System.out.print("\nEnter your choice : ");
@@ -454,11 +469,12 @@ public class PlayList {
       } else if (option == 4)
         userPlayLists.printPlaylist();
       else if (option == 5) {
-        System.out.print("\nName of the playlist : ");
-        sc.skip("[\r\n]+");
+        if (!userPlayLists.checkIfPlaylistIsSelected()) {
+          System.out.println("\nYou need to select a playlist first.");
+          continue;
+        }
 
-        String name = sc.nextLine();
-        userPlayLists.printSongsOfPlaylist(name);
+        userPlayLists.printSongsOfPlaylist(userPlayLists.selectedPlayList.name);
       } else if (option == 6) {
         if (!userPlayLists.checkIfPlaylistIsSelected()) {
           System.out.println("\nYou need to select a playlist first.");
@@ -529,6 +545,13 @@ public class PlayList {
         System.out.print("\nHow many songs you want to seek : ");
         int seekNum = sc.nextInt();
         userPlayLists.selectedPlayList.seekSongs(seekNum);
+      } else if (option == 14) {
+        if (!userPlayLists.checkIfPlaylistIsSelected()) {
+          System.out.println("\nYou're not playing anything.");
+          continue;
+        }
+
+        userPlayLists.selectedPlayList.printCurrentlyPlayingSong();
       } else
         break;
     }
